@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AquaSync — Smart Irrigation Control System</title>
+<style>
+  :root{
+    --bg:#0f1923;--surface:#162332;--card:#1e2f42;--accent:#00c2a8;--accent2:#0077ff;
+    --warn:#f59e0b;--danger:#ef4444;--text:#e8f0fe;--muted:#7a9bbf;--border:#2a3f58;
+    --green:#22c55e;--radius:14px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;}
+  
+  /* TOPBAR */
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;}
+  .logo{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:700;color:var(--accent);}
+  .logo svg{width:32px;height:32px;}
+  .status-badge{display:flex;align-items:center;gap:6px;background:#0d2a1e;border:1px solid var(--green);color:var(--green);padding:5px 12px;border-radius:20px;font-size:13px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+  .topbar-right{display:flex;align-items:center;gap:14px;}
+  .alert-btn{position:relative;background:transparent;border:none;cursor:pointer;color:var(--muted);}
+  .alert-btn .badge{position:absolute;top:-4px;right:-4px;background:var(--danger);color:#fff;border-radius:50%;width:16px;height:16px;font-size:10px;display:flex;align-items:center;justify-content:center;}
+  .user-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;cursor:pointer;}
+  
+  /* LAYOUT */
+  .layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 65px);}
+  
+  /* SIDEBAR */
+  .sidebar{background:var(--surface);border-right:1px solid var(--border);padding:20px 0;}
+  .nav-section{margin-bottom:8px;}
+  .nav-label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);padding:0 20px;margin-bottom:8px;}
+  .nav-item{display:flex;align-items:center;gap:12px;padding:10px 20px;cursor:pointer;color:var(--muted);font-size:14px;transition:.15s;border-left:3px solid transparent;}
+  .nav-item:hover{background:rgba(0,194,168,.07);color:var(--text);}
+  .nav-item.active{color:var(--accent);background:rgba(0,194,168,.12);border-left-color:var(--accent);}
+  .nav-item svg{width:18px;height:18px;flex-shrink:0;}
+  
+  /* MAIN */
+  .main{padding:24px;overflow-y:auto;}
+  .page-header{margin-bottom:22px;}
+  .page-header h1{font-size:22px;font-weight:700;}
+  .page-header p{color:var(--muted);font-size:14px;margin-top:4px;}
+  
+  /* STAT CARDS */
+  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px;}
+  .stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;}
+  .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent-color,var(--accent));}
+  .stat-card .icon{width:40px;height:40px;border-radius:10px;background:rgba(0,194,168,.12);display:flex;align-items:center;justify-content:center;margin-bottom:12px;}
+  .stat-card .icon svg{width:20px;height:20px;color:var(--accent);}
+  .stat-card .value{font-size:28px;font-weight:700;line-height:1;}
+  .stat-card .label{font-size:12px;color:var(--muted);margin-top:4px;}
+  .stat-card .change{font-size:12px;margin-top:8px;}
+  .change.up{color:var(--green);}
+  .change.down{color:var(--danger);}
+  
+  /* ZONES GRID */
+  .section-title{font-size:16px;font-weight:600;margin-bottom:14px;}
+  .zones-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:22px;}
+  .zone-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;transition:.2s;}
+  .zone-card:hover{border-color:var(--accent);box-shadow:0 0 0 1px rgba(0,194,168,.2);}
+  .zone-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .zone-name{font-weight:600;font-size:15px;}
+  .zone-status{display:flex;align-items:center;gap:5px;font-size:12px;}
+  .status-dot{width:7px;height:7px;border-radius:50%;}
+  .status-dot.active{background:var(--green);}
+  .status-dot.idle{background:var(--warn);}
+  .status-dot.off{background:var(--muted);}
+  .zone-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+  .metric{background:var(--surface);border-radius:8px;padding:10px;}
+  .metric .m-val{font-size:18px;font-weight:700;}
+  .metric .m-label{font-size:11px;color:var(--muted);margin-top:2px;}
+  .zone-progress{margin-bottom:12px;}
+  .progress-label{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:5px;}
+  .progress-bar{height:6px;background:var(--surface);border-radius:3px;overflow:hidden;}
+  .progress-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .8s ease;}
+  .zone-actions{display:flex;gap:8px;}
+  .btn{padding:7px 14px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:500;transition:.15s;}
+  .btn-primary{background:var(--accent);color:#000;}
+  .btn-primary:hover{opacity:.85;}
+  .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text);}
+  .btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
+  .btn-danger{background:transparent;border:1px solid var(--danger);color:var(--danger);}
+  .btn-danger:hover{background:var(--danger);color:#fff;}
+  .toggle{position:relative;width:44px;height:24px;}
+  .toggle input{display:none;}
+  .toggle-track{width:44px;height:24px;border-radius:12px;background:var(--border);cursor:pointer;transition:.2s;display:block;}
+  .toggle input:checked + .toggle-track{background:var(--accent);}
+  .toggle-thumb{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;pointer-events:none;transition:.2s;}
+  .toggle input:checked ~ .toggle-thumb{left:23px;}
+  
+  /* CHARTS ROW */
+  .charts-row{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;margin-bottom:22px;}
+  .chart-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+  .chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+  .chart-canvas{width:100%;height:180px;position:relative;}
+  
+  /* SENSOR TABLE */
+  .table-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:22px;}
+  table{width:100%;border-collapse:collapse;}
+  th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);padding:8px 12px;border-bottom:1px solid var(--border);}
+  td{padding:12px;font-size:14px;border-bottom:1px solid rgba(42,63,88,.5);}
+  tr:last-child td{border-bottom:none;}
+  tr:hover td{background:rgba(0,194,168,.04);}
+  .sensor-id{font-family:monospace;color:var(--accent);font-size:13px;}
+  .chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:500;}
+  .chip-green{background:rgba(34,197,94,.15);color:var(--green);}
+  .chip-yellow{background:rgba(245,158,11,.15);color:var(--warn);}
+  .chip-red{background:rgba(239,68,68,.15);color:var(--danger);}
+  .chip-blue{background:rgba(0,119,255,.15);color:var(--accent2);}
+  
+  /* ALERTS */
+  .alerts-panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+  .alert-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid rgba(42,63,88,.5);}
+  .alert-item:last-child{border-bottom:none;}
+  .alert-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .alert-icon.warn{background:rgba(245,158,11,.15);color:var(--warn);}
+  .alert-icon.info{background:rgba(0,194,168,.12);color:var(--accent);}
+  .alert-icon.err{background:rgba(239,68,68,.15);color:var(--danger);}
+  .alert-body .title{font-size:13px;font-weight:600;}
+  .alert-body .desc{font-size:12px;color:var(--muted);margin-top:2px;}
+  .alert-time{margin-left:auto;font-size:11px;color:var(--muted);white-space:nowrap;}
+  
+  /* AI PANEL */
+  .ai-panel{background:linear-gradient(135deg,rgba(0,194,168,.08),rgba(0,119,255,.08));border:1px solid rgba(0,194,168,.3);border-radius:var(--radius);padding:20px;margin-bottom:22px;}
+  .ai-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+  .ai-icon{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;}
+  .ai-recommendations{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px;}
+  .rec-card{background:rgba(15,25,35,.5);border-radius:10px;padding:14px;}
+  .rec-card .icon{font-size:22px;margin-bottom:6px;}
+  .rec-card .title{font-size:13px;font-weight:600;margin-bottom:4px;}
+  .rec-card .desc{font-size:12px;color:var(--muted);}
+  
+  /* MINI CHART using SVG */
+  .sparkline{display:flex;align-items:flex-end;gap:3px;height:40px;}
+  .spark-bar{width:8px;border-radius:3px 3px 0 0;background:var(--accent);opacity:.7;}
+  
+  /* RESPONSIVE */
+  @media(max-width:1100px){
+    .stats-grid{grid-template-columns:repeat(2,1fr);}
+    .zones-grid{grid-template-columns:repeat(2,1fr);}
+    .charts-row{grid-template-columns:1fr;}
+    .ai-recommendations{grid-template-columns:1fr;}
+  }
+  @media(max-width:768px){
+    .layout{grid-template-columns:1fr;}
+    .sidebar{display:none;}
+    .stats-grid{grid-template-columns:1fr 1fr;}
+  }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="logo">
+    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="15" stroke="#00c2a8" stroke-width="2"/>
+      <path d="M16 6 C16 6 8 13 8 19 C8 23.4 11.6 27 16 27 C20.4 27 24 23.4 24 19 C24 13 16 6 16 6Z" fill="#00c2a8" opacity=".3"/>
+      <path d="M16 10 C16 10 11 15 11 19.5 C11 22 13.2 24 16 24 C18.8 24 21 22 21 19.5 C21 15 16 10 16 10Z" fill="#00c2a8" opacity=".7"/>
+      <path d="M16 14 C16 14 13.5 17 13.5 19.5 C13.5 21 14.6 22 16 22 C17.4 22 18.5 21 18.5 19.5 C18.5 17 16 14 16 14Z" fill="#00c2a8"/>
+    </svg>
+    AquaSync
+  </div>
+  <div class="status-badge"><div class="dot"></div>System Online · Last sync 12s ago</div>
+  <div class="topbar-right">
+    <button class="alert-btn">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+      <span class="badge">3</span>
+    </button>
+    <div class="user-avatar">AD</div>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="nav-section">
+      <div class="nav-label">Overview</div>
+      <div class="nav-item active">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        Zones
+      </div>
+      <div class="nav-item">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+        Sensors
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Control</div>
+      <div class="nav-item">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Schedules
+      </div>
+      <div class="nav-item">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+        AI Insights
+      </div>
+      <div class="nav-item">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/></svg>
+        Water Usage
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">System</div>
+      <div class="nav-item">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        Security
+      </div>
+      <div class="nav-item">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+        Settings
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+    <div class="page-header">
+      <h1>System Dashboard</h1>
+      <p>April 28, 2026 · Farm Unit A3 · Haryana, India</p>
+    </div>
+
+    <!-- STAT CARDS -->
+    <div class="stats-grid">
+      <div class="stat-card" style="--accent-color:#00c2a8">
+        <div class="icon"><svg fill="none" stroke="#00c2a8" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
+        <div class="value">6/8</div>
+        <div class="label">Active Zones</div>
+        <div class="change up">▲ 2 more than yesterday</div>
+      </div>
+      <div class="stat-card" style="--accent-color:#0077ff">
+        <div class="icon"><svg fill="none" stroke="#0077ff" stroke-width="2" viewBox="0 0 24 24"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/></svg></div>
+        <div class="value">1,420 L</div>
+        <div class="label">Water Used Today</div>
+        <div class="change down">▼ 18% vs last week</div>
+      </div>
+      <div class="stat-card" style="--accent-color:#22c55e">
+        <div class="icon"><svg fill="none" stroke="#22c55e" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+        <div class="value">94.2%</div>
+        <div class="label">System Health</div>
+        <div class="change up">▲ All sensors online</div>
+      </div>
+      <div class="stat-card" style="--accent-color:#f59e0b">
+        <div class="icon"><svg fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></div>
+        <div class="value">₹ 340</div>
+        <div class="label">Saved This Month</div>
+        <div class="change up">▲ 32% efficiency gain</div>
+      </div>
+    </div>
+
+    <!-- AI INSIGHTS -->
+    <div class="ai-panel">
+      <div class="ai-header">
+        <div class="ai-icon">
+          <svg width="20" height="20" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+        </div>
+        <div>
+          <div style="font-weight:600;font-size:15px;">AI Recommendations</div>
+          <div style="font-size:12px;color:var(--muted);">Updated 5 minutes ago · Based on soil moisture, weather forecast & crop calendar</div>
+        </div>
+      </div>
+      <div class="ai-recommendations">
+        <div class="rec-card">
+          <div class="icon">🌧️</div>
+          <div class="title">Delay Zone C irrigation</div>
+          <div class="desc">83% rain probability in next 6h. Estimated saving: 340 L.</div>
+        </div>
+        <div class="rec-card">
+          <div class="icon">💧</div>
+          <div class="title">Zone F moisture critical</div>
+          <div class="desc">Soil moisture at 18% — below threshold. Immediate 20-min cycle recommended.</div>
+        </div>
+        <div class="rec-card">
+          <div class="icon">📅</div>
+          <div class="title">Optimal window tomorrow</div>
+          <div class="desc">5:30–7:00 AM lowest ET₀ forecast. Schedule all zones for maximum efficiency.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ZONES -->
+    <div class="section-title">Irrigation Zones</div>
+    <div class="zones-grid" id="zones-grid"></div>
+
+    <!-- CHARTS ROW -->
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-header">
+          <div class="section-title" style="margin:0">Water Consumption (7 Days)</div>
+          <span style="font-size:12px;color:var(--muted)">Liters / Day</span>
+        </div>
+        <canvas id="waterChart" width="600" height="180"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header">
+          <div class="section-title" style="margin:0">Soil Moisture Trend</div>
+          <span style="font-size:12px;color:var(--muted)">% VWC</span>
+        </div>
+        <canvas id="moistChart" width="300" height="180"></canvas>
+      </div>
+    </div>
+
+    <!-- SENSOR TABLE -->
+    <div class="table-card">
+      <div class="chart-header">
+        <div class="section-title" style="margin:0">Sensor Network</div>
+        <div style="display:flex;gap:8px;">
+          <span class="chip chip-green">● 14 Online</span>
+          <span class="chip chip-yellow">● 2 Warning</span>
+          <span class="chip chip-red">● 1 Offline</span>
+        </div>
+      </div>
+      <table id="sensor-table">
+        <thead>
+          <tr>
+            <th>Sensor ID</th><th>Type</th><th>Zone</th><th>Reading</th><th>Battery</th><th>Signal</th><th>Status</th><th>Last Ping</th>
+          </tr>
+        </thead>
+        <tbody id="sensor-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- ALERTS -->
+    <div class="charts-row">
+      <div class="alerts-panel">
+        <div class="section-title">Recent Alerts</div>
+        <div class="alert-item">
+          <div class="alert-icon warn"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div>
+          <div class="alert-body"><div class="title">Zone F — Low soil moisture (18%)</div><div class="desc">Threshold: 25% — Irrigation cycle triggered automatically</div></div>
+          <div class="alert-time">2 min ago</div>
+        </div>
+        <div class="alert-item">
+          <div class="alert-icon err"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/></svg></div>
+          <div class="alert-body"><div class="title">Sensor SN-09 offline</div><div class="desc">Zone H pressure sensor not responding — check connection</div></div>
+          <div class="alert-time">18 min ago</div>
+        </div>
+        <div class="alert-item">
+          <div class="alert-icon info"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+          <div class="alert-body"><div class="title">Scheduled irrigation completed — Zone A</div><div class="desc">35-minute cycle complete · 210 L consumed</div></div>
+          <div class="alert-time">1 hr ago</div>
+        </div>
+        <div class="alert-item">
+          <div class="alert-icon warn"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div>
+          <div class="alert-body"><div class="title">Weather API: Rain forecast updated</div><div class="desc">Probability risen to 83% — AI adjusted schedule automatically</div></div>
+          <div class="alert-time">2 hr ago</div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="section-title">Quick Controls</div>
+        <div style="display:flex;flex-direction:column;gap:14px;margin-top:8px;" id="quick-controls"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ── Zone Data ──
+const zones = [
+  {id:'A',name:'Zone A — Wheat Field',status:'active',moisture:72,temp:28.4,flow:4.2,scheduled:'07:00',crop:'Wheat',color:'#00c2a8'},
+  {id:'B',name:'Zone B — Rice Paddy',status:'active',moisture:85,temp:29.1,flow:6.8,scheduled:'06:30',crop:'Rice',color:'#0077ff'},
+  {id:'C',name:'Zone C — Vegetable Bed',status:'idle',moisture:58,temp:27.6,flow:0,scheduled:'14:00',crop:'Vegetables',color:'#f59e0b'},
+  {id:'D',name:'Zone D — Orchard',status:'active',moisture:63,temp:30.2,flow:3.1,scheduled:'08:00',crop:'Mango',color:'#22c55e'},
+  {id:'E',name:'Zone E — Nursery',status:'active',moisture:78,temp:26.8,flow:1.4,scheduled:'07:30',crop:'Seedlings',color:'#a855f7'},
+  {id:'F',name:'Zone F — Sugarcane',status:'active',moisture:18,temp:31.4,flow:7.2,scheduled:'Now',crop:'Sugarcane',color:'#ef4444'},
+];
+
+const zGrid = document.getElementById('zones-grid');
+zones.forEach(z => {
+  const sdot = z.status==='active'?'active':z.status==='idle'?'idle':'off';
+  const slabel = z.status==='active'?'Irrigating':z.status==='idle'?'Scheduled':'Offline';
+  zGrid.innerHTML += `
+  <div class="zone-card">
+    <div class="zone-header">
+      <div class="zone-name">${z.name}</div>
+      <div class="zone-status"><span class="status-dot ${sdot}"></span>${slabel}</div>
+    </div>
+    <div class="zone-metrics">
+      <div class="metric"><div class="m-val" style="color:${z.color}">${z.moisture}%</div><div class="m-label">Soil Moisture</div></div>
+      <div class="metric"><div class="m-val">${z.temp}°C</div><div class="m-label">Temperature</div></div>
+      <div class="metric"><div class="m-val">${z.flow} L/m</div><div class="m-label">Flow Rate</div></div>
+      <div class="metric"><div class="m-val">${z.scheduled}</div><div class="m-label">Next Cycle</div></div>
+    </div>
+    <div class="zone-progress">
+      <div class="progress-label"><span>Moisture Level</span><span>${z.moisture}%</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${z.moisture}%;background:linear-gradient(90deg,${z.color},${z.color}88)"></div></div>
+    </div>
+    <div class="zone-actions">
+      <button class="btn btn-primary" onclick="this.textContent=this.textContent==='Irrigate Now'?'Stopping...':'Irrigate Now'">${z.status==='active'?'Stop':'Irrigate Now'}</button>
+      <button class="btn btn-ghost">Settings</button>
+    </div>
+  </div>`;
+});
+
+// ── Sensor Table ──
+const sensors = [
+  {id:'SN-01',type:'Soil Moisture',zone:'A',reading:'72% VWC',battery:87,signal:95,status:'online',ping:'5s'},
+  {id:'SN-02',type:'Temperature',zone:'B',reading:'29.1°C',battery:72,signal:88,status:'online',ping:'5s'},
+  {id:'SN-03',type:'Flow Meter',zone:'C',reading:'0.0 L/m',battery:91,signal:92,status:'online',ping:'5s'},
+  {id:'SN-04',type:'Pressure',zone:'D',reading:'3.4 bar',battery:65,signal:80,status:'online',ping:'8s'},
+  {id:'SN-05',type:'Rain Sensor',zone:'Global',reading:'Dry',battery:88,signal:97,status:'online',ping:'5s'},
+  {id:'SN-06',type:'Soil Moisture',zone:'F',reading:'18% VWC',battery:43,signal:74,status:'warn',ping:'12s'},
+  {id:'SN-07',type:'UV / Light',zone:'E',reading:'42,000 lux',battery:79,signal:86,status:'online',ping:'5s'},
+  {id:'SN-08',type:'pH Sensor',zone:'C',reading:'6.8 pH',battery:60,signal:88,status:'online',ping:'5s'},
+  {id:'SN-09',type:'Pressure',zone:'H',reading:'N/A',battery:12,signal:0,status:'offline',ping:'>5m'},
+];
+const tbody = document.getElementById('sensor-tbody');
+sensors.forEach(s=>{
+  const sc = s.status==='online'?'chip-green':s.status==='warn'?'chip-yellow':'chip-red';
+  const sl = s.status==='online'?'● Online':s.status==='warn'?'⚠ Warning':'✕ Offline';
+  const bc = s.battery>60?'chip-green':s.battery>30?'chip-yellow':'chip-red';
+  tbody.innerHTML+=`<tr>
+    <td><span class="sensor-id">${s.id}</span></td>
+    <td>${s.type}</td><td>${s.zone}</td><td>${s.reading}</td>
+    <td><span class="chip ${bc}">${s.battery}%</span></td>
+    <td>${s.signal}%</td>
+    <td><span class="chip ${sc}">${sl}</span></td>
+    <td style="color:var(--muted)">${s.ping}</td>
+  </tr>`;
+});
+
+// ── Quick Controls ──
+const qc = document.getElementById('quick-controls');
+const controls = [
+  {label:'Auto-Schedule',desc:'AI-driven irrigation scheduling',val:true},
+  {label:'Rain Bypass',desc:'Skip if rain detected',val:true},
+  {label:'Leak Detection',desc:'Real-time pressure monitoring',val:true},
+  {label:'Night Mode',desc:'Disable irrigation 22:00–05:00',val:false},
+];
+controls.forEach((c,i)=>{
+  qc.innerHTML+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--surface);border-radius:9px;">
+    <div><div style="font-size:13px;font-weight:600">${c.label}</div><div style="font-size:11px;color:var(--muted)">${c.desc}</div></div>
+    <label class="toggle"><input type="checkbox" ${c.val?'checked':''}><span class="toggle-track"></span><span class="toggle-thumb"></span></label>
+  </div>`;
+});
+
+// ── Canvas Charts ──
+function drawBarChart(canvasId, labels, data, color='#00c2a8'){
+  const canvas=document.getElementById(canvasId);
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  const pad={top:20,right:10,bottom:30,left:45};
+  const chartW=W-pad.left-pad.right;
+  const chartH=H-pad.top-pad.bottom;
+  ctx.clearRect(0,0,W,H);
+  const max=Math.max(...data)*1.15;
+  const bw=chartW/data.length*0.6;
+  const gap=chartW/data.length;
+  // grid lines
+  for(let i=0;i<=4;i++){
+    const y=pad.top+chartH*(1-i/4);
+    ctx.strokeStyle='rgba(42,63,88,0.8)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(W-pad.right,y);ctx.stroke();
+    ctx.fillStyle='#7a9bbf';ctx.font='10px Segoe UI';ctx.textAlign='right';
+    ctx.fillText(Math.round(max*i/4),pad.left-6,y+3);
+  }
+  // bars
+  data.forEach((v,i)=>{
+    const x=pad.left+i*gap+(gap-bw)/2;
+    const barH=(v/max)*chartH;
+    const y=pad.top+chartH-barH;
+    const grad=ctx.createLinearGradient(0,y,0,y+barH);
+    grad.addColorStop(0,color);grad.addColorStop(1,color+'44');
+    ctx.fillStyle=grad;
+    ctx.beginPath();ctx.roundRect(x,y,bw,barH,3);ctx.fill();
+    ctx.fillStyle='#7a9bbf';ctx.font='10px Segoe UI';ctx.textAlign='center';
+    ctx.fillText(labels[i],x+bw/2,H-pad.bottom+14);
+  });
+}
+function drawLineChart(canvasId,labels,datasets){
+  const canvas=document.getElementById(canvasId);
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  const pad={top:20,right:10,bottom:30,left:35};
+  const chartW=W-pad.left-pad.right;
+  const chartH=H-pad.top-pad.bottom;
+  ctx.clearRect(0,0,W,H);
+  const allVals=datasets.flatMap(d=>d.data);
+  const max=Math.max(...allVals)*1.15;
+  for(let i=0;i<=4;i++){
+    const y=pad.top+chartH*(1-i/4);
+    ctx.strokeStyle='rgba(42,63,88,0.8)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(W-pad.right,y);ctx.stroke();
+    ctx.fillStyle='#7a9bbf';ctx.font='10px Segoe UI';ctx.textAlign='right';
+    ctx.fillText(Math.round(max*i/4),pad.left-4,y+3);
+  }
+  datasets.forEach(ds=>{
+    const pts=ds.data.map((v,i)=>({x:pad.left+i*(chartW/(ds.data.length-1)),y:pad.top+chartH*(1-v/max)}));
+    // fill
+    ctx.beginPath();ctx.moveTo(pts[0].x,pad.top+chartH);
+    pts.forEach(p=>ctx.lineTo(p.x,p.y));
+    ctx.lineTo(pts[pts.length-1].x,pad.top+chartH);ctx.closePath();
+    ctx.fillStyle=ds.color+'22';ctx.fill();
+    // line
+    ctx.beginPath();pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
+    ctx.strokeStyle=ds.color;ctx.lineWidth=2.5;ctx.stroke();
+    // dots
+    pts.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,3.5,0,Math.PI*2);ctx.fillStyle=ds.color;ctx.fill();});
+  });
+  labels.forEach((l,i)=>{
+    const x=pad.left+i*(chartW/(labels.length-1));
+    ctx.fillStyle='#7a9bbf';ctx.font='10px Segoe UI';ctx.textAlign='center';
+    ctx.fillText(l,x,H-pad.bottom+14);
+  });
+}
+drawBarChart('waterChart',['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],[1820,1650,1940,1420,1780,1550,1420],'#0077ff');
+drawLineChart('moistChart',['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],[
+  {data:[68,65,71,74,70,66,72],color:'#00c2a8'},
+  {data:[40,38,55,62,58,42,18],color:'#ef4444'},
+]);
+</script>
+</body>
+</html>
