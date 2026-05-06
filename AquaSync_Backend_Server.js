@@ -1,22 +1,4 @@
-/**
- * AquaSync Smart Irrigation System — Backend Server
- * Node.js + Express | Security-hardened | MQTT IoT Bridge
- * 
- * Vulnerabilities addressed vs legacy systems:
- *  1. All API routes use JWT + role-based access (no plain-text auth)
- *  2. Input validation via Joi schema on every endpoint
- *  3. Rate-limiting prevents DoS/brute-force attacks
- *  4. TLS enforced; HTTP redirects to HTTPS
- *  5. MQTT broker requires TLS + device certificates
- *  6. Replay attack prevention via nonce + timestamp checking
- *  7. SQL injection prevented via parameterized queries
- *  8. AES-256-GCM at-rest encryption for sensor data
- *  9. RBAC: farmer / agronomist / admin roles enforced
- * 10. Firmware OTA updates signed with Ed25519
- */
-
 'use strict';
-
 const express       = require('express');
 const helmet        = require('helmet');
 const cors          = require('cors');
@@ -47,6 +29,7 @@ CONFIG.jwtSecret = CONFIG.jwtSecret || 'dev-only-secret-change-before-deploy';
 // ─────────────────────────────────────────────
 // DATABASE (PostgreSQL — parameterized queries)
 // ─────────────────────────────────────────────
+/*
 const db = new Pool({ connectionString: CONFIG.dbUrl });
 
 async function dbQuery(text, params) {
@@ -404,7 +387,7 @@ try {
   console.warn('[MQTT] Could not connect (dev mode?):', e.message);
   mqttClient = { publish: (t, p, o, cb) => cb && cb(null) };
 }
-
+*/
 // ─────────────────────────────────────────────
 // ERROR HANDLER
 // ─────────────────────────────────────────────
